@@ -24,42 +24,35 @@
  */
 package org.slf4j;
 
-import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.ServiceLoader;
-import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
-
 import org.slf4j.event.SubstituteLoggingEvent;
 import org.slf4j.helpers.NOPServiceProvider;
-import org.slf4j.helpers.SubstituteServiceProvider;
 import org.slf4j.helpers.SubstituteLogger;
-
+import org.slf4j.helpers.SubstituteServiceProvider;
 import org.slf4j.helpers.Util;
 import org.slf4j.spi.SLF4JServiceProvider;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * The <code>LoggerFactory</code> is a utility class producing Loggers for
  * various logging APIs, most notably for log4j, logback and JDK 1.4 logging.
  * Other implementations such as {@link org.slf4j.nop.NOPLogger NOPLogger} and
  * {@link org.slf4j.simple.SimpleLogger SimpleLogger} are also supported.
- * 
+ *
  * <p><code>LoggerFactory</code> is essentially a wrapper around an
  * {@link ILoggerFactory} instance bound with <code>LoggerFactory</code> at
  * compile time.
- * 
+ *
  * <p>
  * Please note that all methods in <code>LoggerFactory</code> are static.
- * 
+ *
  * @author Alexander Dorokhine
  * @author Robert Elliot
  * @author Ceki G&uuml;lc&uuml;
- * 
+ *
  */
 public final class LoggerFactory {
 
@@ -67,7 +60,7 @@ public final class LoggerFactory {
 
     static final String NO_PROVIDERS_URL = CODES_PREFIX + "#noProviders";
     static final String IGNORED_BINDINGS_URL = CODES_PREFIX + "#ignoredBindings";
-    
+
     static final String NO_STATICLOGGERBINDER_URL = CODES_PREFIX + "#StaticLoggerBinder";
     static final String MULTIPLE_BINDINGS_URL = CODES_PREFIX + "#multiple_bindings";
     static final String NULL_LF_URL = CODES_PREFIX + "#null_LF";
@@ -177,7 +170,7 @@ public final class LoggerFactory {
             Util.report("Ignoring binding found at [" + path + "]");
         }
         Util.report("See " + IGNORED_BINDINGS_URL + " for an explanation.");
-   
+
 
     }
 
@@ -326,7 +319,7 @@ public final class LoggerFactory {
     /**
      * Prints a warning message on the console if multiple bindings were found
      * on the class path. No reporting is done otherwise.
-     * 
+     *
      */
     private static void reportMultipleBindingAmbiguity(List<SLF4JServiceProvider> providerList) {
         if (isAmbiguousProviderList(providerList)) {
@@ -348,7 +341,7 @@ public final class LoggerFactory {
     /**
      * Return a logger named according to the name parameter using the
      * statically bound {@link ILoggerFactory} instance.
-     * 
+     *
      * @param name
      *            The name of the logger.
      * @return logger
@@ -361,7 +354,7 @@ public final class LoggerFactory {
     /**
      * Return a logger named corresponding to the class passed as parameter,
      * using the statically bound {@link ILoggerFactory} instance.
-     * 
+     *
      * <p>
      * In case the the <code>clazz</code> parameter differs from the name of the
      * caller as computed internally by SLF4J, a logger name mismatch warning
@@ -369,12 +362,12 @@ public final class LoggerFactory {
      * <code>slf4j.detectLoggerNameMismatch</code> system property is set to
      * true. By default, this property is not set and no warnings will be
      * printed even in case of a logger name mismatch.
-     * 
+     *
      * @param clazz
      *            the returned logger will be named after clazz
      * @return logger
-     * 
-     * 
+     *
+     *
      * @see <a
      *      href="http://www.slf4j.org/codes.html#loggerNameMismatch">Detected
      *      logger name mismatch</a>
@@ -401,40 +394,52 @@ public final class LoggerFactory {
      * <p>
      * <p>
      * ILoggerFactory instance is bound with this class at compile time.
-     * 
+     *
      * @return the ILoggerFactory instance in use
      */
     public static ILoggerFactory getILoggerFactory() {
         return getProvider().getLoggerFactory();
     }
 
-    /**
+    /**弄清楚 3个点
+     *  1 为什么锁synchronized没加到方法声明的地方？比如：static synchronized  SLF4JServiceProvider getProvider()
+     *  2 为什么锁synchronized不直接包裹第一个if？比如：synchronized (LoggerFactory.class) { if (INITIALIZATION_STATE == UNINITIALIZED) {....}}
+     *  3 为什么声明PROVIDER时要使用volatile？有什么用
+     *
      * Return the {@link SLF4JServiceProvider} in use.
-
+     * 先初始化，再判断初始化状态，如果已经使用过也就是被初始化过了不需要重新初始化
      * @return provider in use
      * @since 1.8.0
      */
-    static SLF4JServiceProvider getProvider() {
+    static  SLF4JServiceProvider getProvider() {
+        //如果未进行初始化过程双重枷锁判断
         if (INITIALIZATION_STATE == UNINITIALIZED) {
             synchronized (LoggerFactory.class) {
                 if (INITIALIZATION_STATE == UNINITIALIZED) {
+                    //初始化之前先把状态改为正在初始化
                     INITIALIZATION_STATE = ONGOING_INITIALIZATION;
                     performInitialization();
                 }
             }
         }
+
+
         switch (INITIALIZATION_STATE) {
         case SUCCESSFUL_INITIALIZATION:
+            //初始化成功返回对应的provider
             return PROVIDER;
         case NOP_FALLBACK_INITIALIZATION:
+            //返回应急的provider也就是默认的provider
             return NOP_FALLBACK_FACTORY;
         case FAILED_INITIALIZATION:
+            //初始化失败则抛出异常
             throw new IllegalStateException(UNSUCCESSFUL_INIT_MSG);
         case ONGOING_INITIALIZATION:
-            // support re-entrant behavior.
+            // support re-entrant behavior. 支持从如初始化操作
             // See also http://jira.qos.ch/browse/SLF4J-97
             return SUBST_PROVIDER;
         }
+        //其他状态抛出异常
         throw new IllegalStateException("Unreachable code");
     }
 }

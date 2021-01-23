@@ -4,7 +4,7 @@ import org.slf4j.ILoggerFactory;
 import org.slf4j.IMarkerFactory;
 import org.slf4j.LoggerFactory;
 
-/**
+/**该接口基于ServiceLoader(SPI)规范
  * This interface based on {@link java.util.ServiceLoader} paradigm. 
  * 
  * <p>It replaces the old static-binding mechanism used in SLF4J versions 1.0.x to 1.7.x.
