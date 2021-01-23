@@ -92,8 +92,10 @@ public final class LoggerFactory {
     static volatile SLF4JServiceProvider PROVIDER;
 
     private static List<SLF4JServiceProvider> findServiceProviders() {
+        //ServiceLoader.load(SLF4JServiceProvider.class) 基于SPI的机制进行类的加载。了解SPI机制就知道了在哪里加载的如何加载的？
         ServiceLoader<SLF4JServiceProvider> serviceLoader = ServiceLoader.load(SLF4JServiceProvider.class);
         List<SLF4JServiceProvider> providerList = new ArrayList<SLF4JServiceProvider>();
+        //因为ServiceLoader implements Iterable 所以SLF4JServiceProvider是可以遍历的
         for (SLF4JServiceProvider provider : serviceLoader) {
             providerList.add(provider);
         }
@@ -131,29 +133,40 @@ public final class LoggerFactory {
     private final static void performInitialization() {
         bind();
         if (INITIALIZATION_STATE == SUCCESSFUL_INITIALIZATION) {
+            // 只进行检查PROVIDER，如果符合要求日志怎么输出，不符合要求日志怎么输出。
             versionSanityCheck();
         }
     }
 
     private final static void bind() {
         try {
+            //find ServiceProvider的列表，是值得重点研究的对象
             List<SLF4JServiceProvider> providersList = findServiceProviders();
+            //如果在类路径上发现多个绑定，则在控制台上打印警告消息。
             reportMultipleBindingAmbiguity(providersList);
+            //判断是否扫描到SLF4JServiceProvider的实现类
             if (providersList != null && !providersList.isEmpty()) {
+                // 获取第一个SLF4JServiceProvider实例赋值给provider
             	PROVIDER = providersList.get(0);
             	// SLF4JServiceProvider.initialize() is intended to be called here and nowhere else.
+                // SLF4JServiceProvider.initialize()将在这里调用，而不会在其他地方调用。
             	PROVIDER.initialize();
+            	// 改写INITIALIZATION_STATE状态
             	INITIALIZATION_STATE = SUCCESSFUL_INITIALIZATION;
                 reportActualBinding(providersList);
-            } else {
+            } else {//如果没有扫描到SLF4JServiceProvider的实现类
+                // 把实例化状态改成NOP_FALLBACK_INITIALIZATION，表示没有实例化成功
                 INITIALIZATION_STATE = NOP_FALLBACK_INITIALIZATION;
+                // 下面三行在没有使用日志框架的时候经常会看到
                 Util.report("No SLF4J providers were found.");
                 Util.report("Defaulting to no-operation (NOP) logger implementation");
                 Util.report("See " + NO_PROVIDERS_URL + " for further details.");
 
+                //打印忽略掉的静态logger绑定
                 Set<URL> staticLoggerBinderPathSet = findPossibleStaticLoggerBinderPathSet();
                 reportIgnoredStaticLoggerBinders(staticLoggerBinderPathSet);
             }
+            // 一个清理的过程，不重点看它
             postBindCleanUp();
         } catch (Exception e) {
             failedBinding(e);
@@ -418,6 +431,7 @@ public final class LoggerFactory {
                 if (INITIALIZATION_STATE == UNINITIALIZED) {
                     //初始化之前先把状态改为正在初始化
                     INITIALIZATION_STATE = ONGOING_INITIALIZATION;
+                    //执行初始化
                     performInitialization();
                 }
             }
