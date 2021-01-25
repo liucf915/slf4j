@@ -24,13 +24,13 @@
  */
 package org.slf4j.log4j12;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
 import org.apache.log4j.LogManager;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.helpers.Util;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Log4jLoggerFactory is an implementation of {@link ILoggerFactory} returning
@@ -45,8 +45,11 @@ public class Log4jLoggerFactory implements ILoggerFactory {
     // check for delegation loops
     static {
         try {
+            // log4j的jar里面的路径，并不是slf4j桥接器slf4j-log4j12里的类路径
             Class.forName("org.apache.log4j.Log4jLoggerFactory");
+            //不能同时引用反桥接器和桥接器会死循环的
             String part1 = "Detected both log4j-over-slf4j.jar AND bound slf4j-log4j12.jar on the class path, preempting StackOverflowError. ";
+            //官方文档地址
             String part2 = "See also " + LOG4J_DELEGATION_LOOP_URL + " for more details.";
 
             Util.report(part1);
@@ -57,12 +60,12 @@ public class Log4jLoggerFactory implements ILoggerFactory {
         }
     }
 
-    // key: name (String), value: a Log4jLoggerAdapter;
+    // key: name (String), value: a Log4jLoggerAdapter; 这个Map是线程安全的
     ConcurrentMap<String, Logger> loggerMap;
 
     public Log4jLoggerFactory() {
         loggerMap = new ConcurrentHashMap<String, Logger>();
-        // force log4j to initialize
+        // force log4j to initialize 强制log4j初始化
         org.apache.log4j.LogManager.getRootLogger();
     }
 
@@ -81,8 +84,10 @@ public class Log4jLoggerFactory implements ILoggerFactory {
                 log4jLogger = LogManager.getRootLogger();
             else
                 log4jLogger = LogManager.getLogger(name);
-
+            //这个方法里获得的Logger是org.apache.log4j.Logger的log，想要的是org.slf4j.Logger,所以调用下面适配器功能转换适配
             Logger newInstance = new Log4jLoggerAdapter(log4jLogger);
+            //loggerMap里没有name, newInstance这样一个name的log的话就把它put进去
+            //前面已经判断了这里为什么有重新putIfAbsent了一次？
             Logger oldInstance = loggerMap.putIfAbsent(name, newInstance);
             return oldInstance == null ? newInstance : oldInstance;
         }

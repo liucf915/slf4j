@@ -146,7 +146,7 @@ public final class LoggerFactory {
             reportMultipleBindingAmbiguity(providersList);
             //判断是否扫描到SLF4JServiceProvider的实现类
             if (providersList != null && !providersList.isEmpty()) {
-                // 获取第一个SLF4JServiceProvider实例赋值给provider
+                // 获取第一个SLF4JServiceProvider实例赋值给provider(注意如果同时引入log4j和logback到底引用哪个呢？随机的吗？如果这样就不能同时使用两个实现的jar)
             	PROVIDER = providersList.get(0);
             	// SLF4JServiceProvider.initialize() is intended to be called here and nowhere else.
                 // SLF4JServiceProvider.initialize()将在这里调用，而不会在其他地方调用。

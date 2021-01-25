@@ -23,6 +23,7 @@ public class Log4j12ServiceProvider implements SLF4JServiceProvider {
     
     public Log4j12ServiceProvider() {
         try {
+            // 看似没用的Level level = Level.TRACE;一行实际是检查版本兼容性，发现版本低于log4j version 1.2.12然后提示
             @SuppressWarnings("unused")
             Level level = Level.TRACE;
         } catch (NoSuchFieldError nsfe) {
